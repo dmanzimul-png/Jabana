@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, ShoppingCart } from 'lucide-react'
+import DeleteConfirm from '../../components/DeleteConfirm'
+import { Plus, X, ShoppingCart, Trash2 } from 'lucide-react'
 
 const statusColors = {
   paid: 'bg-green-100 text-green-700',
@@ -19,6 +20,7 @@ export default function Sales() {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [deleteId, setDeleteId] = useState(null)
 
   const [form, setForm] = useState({
     customer_name: '', location: '', bags_5kg: '', bags_10kg: '', bags_25kg: '',
@@ -56,6 +58,12 @@ export default function Sales() {
     }
   }
 
+  async function handleDelete() {
+    await supabase.from('sales').delete().eq('id', deleteId)
+    setDeleteId(null)
+    fetchSales()
+  }
+
   const totalKg = (parseInt(form.bags_5kg) || 0) * 5 + (parseInt(form.bags_10kg) || 0) * 10 + (parseInt(form.bags_25kg) || 0) * 25
   const totalAmount = totalKg * (parseFloat(form.price_per_kg) || 0)
   const todayRevenue = sales.filter(s => new Date(s.sold_at).toDateString() === new Date().toDateString()).reduce((s, x) => s + parseFloat(x.amount_received), 0)
@@ -64,6 +72,7 @@ export default function Sales() {
 
   return (
     <div>
+      {deleteId && <DeleteConfirm onConfirm={handleDelete} onCancel={() => setDeleteId(null)} />}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Sales</h1>
@@ -108,9 +117,10 @@ export default function Sales() {
                     <p className="font-bold text-gray-900">{s.customer_name}</p>
                     {s.location && <p className="text-xs text-gray-400">📍 {s.location}</p>}
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColors[s.payment_status]}`}>
-                    {statusLabels[s.payment_status]}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColors[s.payment_status]}`}>{statusLabels[s.payment_status]}</span>
+                    <button onClick={() => setDeleteId(s.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button>
+                  </div>
                 </div>
                 <div className="flex gap-2 text-xs text-gray-500 mb-3">
                   {s.bags_5kg > 0 && <span className="bg-gray-100 rounded-lg px-2 py-1">{s.bags_5kg}×5kg</span>}
@@ -137,7 +147,7 @@ export default function Sales() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Customer', 'Location', '5kg', '10kg', '25kg', 'Total kg', 'Total', 'Received', 'Status', 'Salesperson', 'Date'].map(h => (
+                    {['Customer', 'Location', '5kg', '10kg', '25kg', 'Total kg', 'Total', 'Received', 'Status', 'Salesperson', 'Date', ''].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -158,6 +168,7 @@ export default function Sales() {
                       </td>
                       <td className="px-4 py-3 text-gray-500">{s.salesperson || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{new Date(s.sold_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3"><button onClick={() => setDeleteId(s.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button></td>
                     </tr>
                   ))}
                 </tbody>

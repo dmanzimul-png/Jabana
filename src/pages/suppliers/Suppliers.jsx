@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Truck } from 'lucide-react'
+import DeleteConfirm from '../../components/DeleteConfirm'
+import { Plus, X, Truck, Trash2 } from 'lucide-react'
 
 function formatRWF(amount) {
   return 'RWF ' + Number(amount).toLocaleString()
@@ -12,6 +13,7 @@ export default function Suppliers() {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [deleteId, setDeleteId] = useState(null)
 
   const [form, setForm] = useState({ name: '', phone: '', location: '' })
 
@@ -48,8 +50,15 @@ export default function Suppliers() {
     }
   }
 
+  async function handleDelete() {
+    await supabase.from('suppliers').delete().eq('id', deleteId)
+    setDeleteId(null)
+    fetchSuppliers()
+  }
+
   return (
     <div>
+      {deleteId && <DeleteConfirm onConfirm={handleDelete} onCancel={() => setDeleteId(null)} />}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Suppliers</h1>
@@ -85,7 +94,7 @@ export default function Suppliers() {
 
             return (
               <div key={s.id} className="bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="font-bold text-gray-900 text-lg">{s.name}</h3>
                     <div className="flex flex-col gap-0.5 mt-1">
@@ -93,9 +102,10 @@ export default function Suppliers() {
                       {s.location && <p className="text-sm text-gray-500">📍 {s.location}</p>}
                     </div>
                   </div>
-                  {hasUnpaid && (
-                    <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Owes Payment</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {hasUnpaid && <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">Owes Payment</span>}
+                    <button onClick={() => setDeleteId(s.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">

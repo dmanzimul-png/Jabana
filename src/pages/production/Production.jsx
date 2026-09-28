@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Factory } from 'lucide-react'
+import DeleteConfirm from '../../components/DeleteConfirm'
+import { Plus, X, Factory, Trash2 } from 'lucide-react'
 
 export default function Production() {
   const [batches, setBatches] = useState([])
@@ -9,6 +10,7 @@ export default function Production() {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [deleteId, setDeleteId] = useState(null)
 
   const [form, setForm] = useState({
     delivery_id: '', maize_input_kg: '', flour_produced_kg: '',
@@ -56,6 +58,12 @@ export default function Production() {
     }
   }
 
+  async function handleDelete() {
+    await supabase.from('batches').delete().eq('id', deleteId)
+    setDeleteId(null)
+    fetchAll()
+  }
+
   const yieldPercent = form.maize_input_kg && form.flour_produced_kg
     ? ((parseFloat(form.flour_produced_kg) / parseFloat(form.maize_input_kg)) * 100).toFixed(1) : null
 
@@ -67,6 +75,7 @@ export default function Production() {
 
   return (
     <div>
+      {deleteId && <DeleteConfirm onConfirm={handleDelete} onCancel={() => setDeleteId(null)} />}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Production</h1>
@@ -112,9 +121,10 @@ export default function Production() {
                     <p className="font-bold text-gray-900 mt-0.5">{b.maize_deliveries?.suppliers?.name ?? '—'}</p>
                     <p className="text-xs text-gray-400">{b.maize_deliveries?.batch_number ?? ''}</p>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${yieldColor(b.yield_percent)}`}>
-                    {b.yield_percent}% yield
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${yieldColor(b.yield_percent)}`}>{b.yield_percent}% yield</span>
+                    <button onClick={() => setDeleteId(b.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-gray-50 rounded-xl p-2">
@@ -160,6 +170,7 @@ export default function Production() {
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${yieldColor(b.yield_percent)}`}>{b.yield_percent}%</span>
                       </td>
                       <td className="px-4 py-3 text-gray-500">{new Date(b.produced_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3"><button onClick={() => setDeleteId(b.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button></td>
                     </tr>
                   ))}
                 </tbody>

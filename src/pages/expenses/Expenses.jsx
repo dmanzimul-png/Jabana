@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Receipt } from 'lucide-react'
+import DeleteConfirm from '../../components/DeleteConfirm'
+import { Plus, X, Receipt, Trash2 } from 'lucide-react'
 
 const categories = [
   { value: 'wages', label: 'Worker Wages' },
@@ -32,6 +33,7 @@ export default function Expenses() {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [deleteId, setDeleteId] = useState(null)
 
   const [form, setForm] = useState({
     category: 'wages', amount: '', description: '',
@@ -67,6 +69,12 @@ export default function Expenses() {
     }
   }
 
+  async function handleDelete() {
+    await supabase.from('expenses').delete().eq('id', deleteId)
+    setDeleteId(null)
+    fetchExpenses()
+  }
+
   const totalExpenses = expenses.reduce((s, e) => s + parseFloat(e.amount), 0)
   const thisMonthTotal = expenses.filter(e => {
     const d = new Date(e.expense_date), now = new Date()
@@ -79,6 +87,7 @@ export default function Expenses() {
 
   return (
     <div>
+      {deleteId && <DeleteConfirm onConfirm={handleDelete} onCancel={() => setDeleteId(null)} />}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
@@ -136,7 +145,10 @@ export default function Expenses() {
                   {e.description && <p className="text-sm text-gray-700 mt-1">{e.description}</p>}
                   <p className="text-xs text-gray-400 mt-1">{new Date(e.expense_date).toLocaleDateString()}</p>
                 </div>
-                <p className="font-bold text-red-600 text-lg">{formatRWF(e.amount)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-red-600 text-lg">{formatRWF(e.amount)}</p>
+                  <button onClick={() => setDeleteId(e.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button>
+                </div>
               </div>
             ))}
           </div>
@@ -147,7 +159,7 @@ export default function Expenses() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Date', 'Category', 'Description', 'Amount'].map(h => (
+                    {['Date', 'Category', 'Description', 'Amount', ''].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -163,6 +175,7 @@ export default function Expenses() {
                       </td>
                       <td className="px-4 py-3 text-gray-700">{e.description || '—'}</td>
                       <td className="px-4 py-3 font-semibold text-red-700">{formatRWF(e.amount)}</td>
+                      <td className="px-4 py-3"><button onClick={() => setDeleteId(e.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button></td>
                     </tr>
                   ))}
                 </tbody>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Wheat } from 'lucide-react'
+import { Plus, X, Wheat, Trash2 } from 'lucide-react'
 
 const statusColors = {
   paid: 'bg-green-100 text-green-700',
@@ -20,6 +20,7 @@ export default function MaizeReceiving() {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [deleteId, setDeleteId] = useState(null)
 
   const [form, setForm] = useState({
     supplier_id: '', new_supplier: '', tonnes: '', price_per_tonne: '',
@@ -74,6 +75,12 @@ export default function MaizeReceiving() {
     }
   }
 
+  async function handleDelete() {
+    await supabase.from('maize_deliveries').delete().eq('id', deleteId)
+    setDeleteId(null)
+    fetchAll()
+  }
+
   const total = parseFloat(form.tonnes) * parseFloat(form.price_per_tonne) || 0
 
   return (
@@ -88,7 +95,6 @@ export default function MaizeReceiving() {
         </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <div className="bg-yellow-50 rounded-2xl p-4">
           <p className="text-xs font-medium text-yellow-700 mb-1">Total Deliveries</p>
@@ -115,7 +121,6 @@ export default function MaizeReceiving() {
         </div>
       ) : (
         <>
-          {/* Mobile Cards */}
           <div className="lg:hidden space-y-3">
             {deliveries.map(d => (
               <div key={d.id} className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -124,9 +129,12 @@ export default function MaizeReceiving() {
                     <p className="font-mono text-xs text-green-700 font-semibold">{d.batch_number}</p>
                     <p className="font-bold text-gray-900 mt-0.5">{d.suppliers?.name ?? '—'}</p>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColors[d.payment_status]}`}>
-                    {statusLabels[d.payment_status]}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColors[d.payment_status]}`}>{statusLabels[d.payment_status]}</span>
+                    <button onClick={() => setDeleteId(d.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-gray-50 rounded-xl p-2">
@@ -147,13 +155,12 @@ export default function MaizeReceiving() {
             ))}
           </div>
 
-          {/* Desktop Table */}
           <div className="hidden lg:block bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Batch #', 'Supplier', 'Tonnes', 'Price/Tonne', 'Total', 'Paid', 'Status', 'Date'].map(h => (
+                    {['Batch #', 'Supplier', 'Tonnes', 'Price/Tonne', 'Total', 'Paid', 'Status', 'Date', ''].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -171,6 +178,11 @@ export default function MaizeReceiving() {
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColors[d.payment_status]}`}>{statusLabels[d.payment_status]}</span>
                       </td>
                       <td className="px-4 py-3 text-gray-500">{new Date(d.received_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => setDeleteId(d.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition">
+                          <Trash2 size={15} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -180,7 +192,23 @@ export default function MaizeReceiving() {
         </>
       )}
 
-      {/* Form Modal */}
+      {/* Delete Confirm */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={22} className="text-red-600" />
+            </div>
+            <h3 className="font-bold text-gray-900 mb-2">Delete Delivery?</h3>
+            <p className="text-sm text-gray-500 mb-6">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteId(null)} className="flex-1 border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition">Cancel</button>
+              <button onClick={handleDelete} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end lg:items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
