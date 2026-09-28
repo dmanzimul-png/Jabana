@@ -19,23 +19,36 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Dashboard />} />
-            <Route path="maize" element={<MaizeReceiving />} />
-            <Route path="production" element={<Production />} />
-            <Route path="inventory" element={<Inventory />} />
-            <Route path="sales" element={<Sales />} />
-            <Route path="suppliers" element={<Suppliers />} />
-            <Route path="expenses" element={<Expenses />} />
-            <Route path="reports" element={<ProtectedRoute roles={['admin', 'owner']}><Reports /></ProtectedRoute>} />
-            <Route path="users" element={<ProtectedRoute roles={['admin']}><Users /></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+
+            <Route index element={
+              <ProtectedRoute roles={['admin', 'owner', 'manager']}><Dashboard /></ProtectedRoute>
+            } />
+            <Route path="maize" element={
+              <ProtectedRoute roles={['admin', 'manager', 'worker']}><MaizeReceiving /></ProtectedRoute>
+            } />
+            <Route path="production" element={
+              <ProtectedRoute roles={['admin', 'manager', 'worker']}><Production /></ProtectedRoute>
+            } />
+            <Route path="sales" element={
+              <ProtectedRoute roles={['admin', 'manager', 'worker']}><Sales /></ProtectedRoute>
+            } />
+            <Route path="inventory" element={
+              <ProtectedRoute roles={['admin', 'manager']}><Inventory /></ProtectedRoute>
+            } />
+            <Route path="suppliers" element={
+              <ProtectedRoute roles={['admin', 'manager']}><Suppliers /></ProtectedRoute>
+            } />
+            <Route path="expenses" element={
+              <ProtectedRoute roles={['admin', 'manager']}><Expenses /></ProtectedRoute>
+            } />
+            <Route path="reports" element={
+              <ProtectedRoute roles={['admin', 'owner']}><Reports /></ProtectedRoute>
+            } />
+            <Route path="users" element={
+              <ProtectedRoute roles={['admin']}><Users /></ProtectedRoute>
+            } />
+
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

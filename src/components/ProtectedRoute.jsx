@@ -1,6 +1,13 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
+const roleHomePages = {
+  admin: '/',
+  owner: '/',
+  manager: '/',
+  worker: '/maize',
+}
+
 export default function ProtectedRoute({ children, roles }) {
   const { user, profile, loading } = useAuth()
 
@@ -12,7 +19,9 @@ export default function ProtectedRoute({ children, roles }) {
 
   if (!user) return <Navigate to="/login" replace />
 
-  if (roles && profile && !roles.includes(profile.role)) return <Navigate to="/" replace />
+  if (roles && profile && !roles.includes(profile.role)) {
+    return <Navigate to={roleHomePages[profile.role] ?? '/maize'} replace />
+  }
 
   return children
 }
