@@ -24,7 +24,7 @@ export default function Production() {
   const [form, setForm] = useState({
     delivery_id: '', flour_type: 'Shenge', maize_input_kg: '', flour_produced_kg: '',
     byproduct_kg: '', other_loss_kg: '',
-    bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: '',
+    bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', bran_bags_50kg: '', notes: '',
   })
 
   useEffect(() => { fetchAll() }, [])
@@ -59,11 +59,12 @@ export default function Production() {
         byproduct_kg: parseFloat(form.byproduct_kg) || 0, other_loss_kg: parseFloat(form.other_loss_kg) || 0,
         bags_5kg: parseInt(form.bags_5kg) || 0, bags_10kg: parseInt(form.bags_10kg) || 0,
         bags_25kg: parseInt(form.bags_25kg) || 0, bags_50kg: parseInt(form.bags_50kg) || 0,
+        bran_bags_50kg: parseInt(form.bran_bags_50kg) || 0,
         notes: form.notes,
       })
       if (err) throw err
       setShowForm(false)
-      setForm({ delivery_id: '', flour_type: 'Shenge', maize_input_kg: '', flour_produced_kg: '', byproduct_kg: '', other_loss_kg: '', bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: '' })
+      setForm({ delivery_id: '', flour_type: 'Shenge', maize_input_kg: '', flour_produced_kg: '', byproduct_kg: '', other_loss_kg: '', bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', bran_bags_50kg: '', notes: '' })
       fetchAll()
     } catch (err) {
       setError(err.message)
@@ -156,6 +157,12 @@ export default function Production() {
                     </div>
                   ))}
                 </div>
+                {(b.bran_bags_50kg > 0) && (
+                  <div className="mt-2 bg-amber-50 rounded-xl p-2 text-center">
+                    <p className="text-xs text-amber-600">Bran 50kg bags</p>
+                    <p className="font-bold text-amber-800 text-sm">{b.bran_bags_50kg}</p>
+                  </div>
+                )}
                 <p className="text-xs text-gray-400 mt-2">{new Date(b.produced_at).toLocaleDateString()}</p>
               </div>
             ))}
@@ -166,7 +173,7 @@ export default function Production() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Batch #', 'Flour Type', 'Supplier', 'Maize In', 'Flour Out', 'Yield', '5kg', '10kg', '25kg', '50kg', 'Date', ''].map(h => (
+                    {['Batch #', 'Flour Type', 'Supplier', 'Maize In', 'Flour Out', 'Yield', '5kg', '10kg', '25kg', '50kg', 'Bran 50kg', 'Date', ''].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -184,6 +191,7 @@ export default function Production() {
                       <td className="px-4 py-3 text-gray-700">{b.bags_10kg ?? 0}</td>
                       <td className="px-4 py-3 text-gray-700">{b.bags_25kg ?? 0}</td>
                       <td className="px-4 py-3 text-gray-700">{b.bags_50kg ?? 0}</td>
+                      <td className="px-4 py-3 text-amber-700 font-medium">{b.bran_bags_50kg ?? 0} bran</td>
                       <td className="px-4 py-3 text-gray-500">{new Date(b.produced_at).toLocaleDateString()}</td>
                       <td className="px-4 py-3"><button onClick={() => setDeleteId(b.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button></td>
                     </tr>
@@ -224,7 +232,7 @@ export default function Production() {
                 {[
                   { label: 'Maize Input (kg)', key: 'maize_input_kg', required: true },
                   { label: 'Flour Produced (kg)', key: 'flour_produced_kg', required: true },
-                  { label: 'By-product (kg)', key: 'byproduct_kg', required: false },
+                  { label: 'Bran Produced (kg)', key: 'byproduct_kg', required: false },
                   { label: 'Other Loss (kg)', key: 'other_loss_kg', required: false },
                 ].map(f => (
                   <div key={f.key}>
@@ -242,8 +250,18 @@ export default function Production() {
                   <span className={`text-xl font-bold ${yieldPercent >= 65 ? 'text-green-700' : yieldPercent >= 55 ? 'text-yellow-700' : 'text-red-700'}`}>{yieldPercent}%</span>
                 </div>
               )}
+              {(parseFloat(form.byproduct_kg) || 0) > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bran Bags (50kg)</label>
+                  <input type="number" min="0" value={form.bran_bags_50kg}
+                    onChange={e => setForm({ ...form, bran_bags_50kg: e.target.value })}
+                    placeholder="0"
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  <p className="text-xs text-gray-400 mt-1">How many 50kg bags of bran came out</p>
+                </div>
+              )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Bags Produced</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Flour Bags Produced</label>
                 <div className={`grid gap-3 grid-cols-${bagSizes.length}`}>
                   {bagSizes.map(size => (
                     <div key={size}>

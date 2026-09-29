@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import DeleteConfirm from '../../components/DeleteConfirm'
+import { ALL_PRODUCT_TYPES, getBagSizes, BAG_KEYS, BAG_WEIGHTS, calcTotalKg } from '../../lib/flourTypes'
 import { Plus, X, ShoppingCart, Trash2 } from 'lucide-react'
 
 const statusColors = {
@@ -14,6 +15,12 @@ function formatRWF(amount) {
   return 'RWF ' + Number(amount).toLocaleString()
 }
 
+const emptyForm = {
+  flour_type: 'Shenge', customer_name: '', location: '',
+  bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '',
+  price_per_kg: '', amount_received: '', payment_status: 'paid', salesperson: '', notes: '',
+}
+
 export default function Sales() {
   const [sales, setSales] = useState([])
   const [loading, setLoading] = useState(true)
@@ -21,11 +28,7 @@ export default function Sales() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [deleteId, setDeleteId] = useState(null)
-
-  const [form, setForm] = useState({
-    customer_name: '', location: '', bags_5kg: '', bags_10kg: '', bags_25kg: '',
-    price_per_kg: '', amount_received: '', payment_status: 'paid', salesperson: '', notes: '',
-  })
+  const [form, setForm] = useState(emptyForm)
 
   useEffect(() => { fetchSales() }, [])
 
@@ -36,20 +39,33 @@ export default function Sales() {
     setLoading(false)
   }
 
+  function handleFlourTypeChange(ft) {
+    setForm(f => ({ ...f, flour_type: ft, bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '' }))
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     setSaving(true)
     try {
+      const totalKg = calcTotalKg(form, form.flour_type)
+      const totalAmount = totalKg * (parseFloat(form.price_per_kg) || 0)
       const { error: err } = await supabase.from('sales').insert({
+        flour_type: form.flour_type,
         customer_name: form.customer_name, location: form.location,
-        bags_5kg: parseInt(form.bags_5kg) || 0, bags_10kg: parseInt(form.bags_10kg) || 0, bags_25kg: parseInt(form.bags_25kg) || 0,
-        price_per_kg: parseFloat(form.price_per_kg), amount_received: parseFloat(form.amount_received) || 0,
+        bags_5kg: parseInt(form.bags_5kg) || 0,
+        bags_10kg: parseInt(form.bags_10kg) || 0,
+        bags_25kg: parseInt(form.bags_25kg) || 0,
+        bags_50kg: parseInt(form.bags_50kg) || 0,
+        total_kg: totalKg,
+        total_amount: totalAmount,
+        price_per_kg: parseFloat(form.price_per_kg),
+        amount_received: parseFloat(form.amount_received) || 0,
         payment_status: form.payment_status, salesperson: form.salesperson, notes: form.notes,
       })
       if (err) throw err
       setShowForm(false)
-      setForm({ customer_name: '', location: '', bags_5kg: '', bags_10kg: '', bags_25kg: '', price_per_kg: '', amount_received: '', payment_status: 'paid', salesperson: '', notes: '' })
+      setForm(emptyForm)
       fetchSales()
     } catch (err) {
       setError(err.message)
@@ -64,11 +80,20 @@ export default function Sales() {
     fetchSales()
   }
 
-  const totalKg = (parseInt(form.bags_5kg) || 0) * 5 + (parseInt(form.bags_10kg) || 0) * 10 + (parseInt(form.bags_25kg) || 0) * 25
+  const bagSizes = getBagSizes(form.flour_type)
+  const totalKg = calcTotalKg(form, form.flour_type)
   const totalAmount = totalKg * (parseFloat(form.price_per_kg) || 0)
   const todayRevenue = sales.filter(s => new Date(s.sold_at).toDateString() === new Date().toDateString()).reduce((s, x) => s + parseFloat(x.amount_received), 0)
   const totalRevenue = sales.reduce((s, x) => s + parseFloat(x.amount_received), 0)
-  const totalKgSold = sales.reduce((s, x) => s + parseFloat(x.total_kg), 0)
+  const totalKgSold = sales.reduce((s, x) => s + parseFloat(x.total_kg || 0), 0)
+
+  function bagSummary(s) {
+    const sizes = getBagSizes(s.flour_type || 'Shenge')
+    return sizes.map(sz => {
+      const key = BAG_KEYS[sz]
+      return s[key] > 0 ? <span key={sz} className="bg-gray-100 rounded-lg px-2 py-1">{s[key]}×{sz}</span> : null
+    })
+  }
 
   return (
     <div>
@@ -115,6 +140,7 @@ export default function Sales() {
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <p className="font-bold text-gray-900">{s.customer_name}</p>
+                    {s.flour_type && <p className="text-xs font-medium text-green-700 mt-0.5">{s.flour_type}</p>}
                     {s.location && <p className="text-xs text-gray-400">📍 {s.location}</p>}
                   </div>
                   <div className="flex items-center gap-2">
@@ -122,10 +148,8 @@ export default function Sales() {
                     <button onClick={() => setDeleteId(s.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button>
                   </div>
                 </div>
-                <div className="flex gap-2 text-xs text-gray-500 mb-3">
-                  {s.bags_5kg > 0 && <span className="bg-gray-100 rounded-lg px-2 py-1">{s.bags_5kg}×5kg</span>}
-                  {s.bags_10kg > 0 && <span className="bg-gray-100 rounded-lg px-2 py-1">{s.bags_10kg}×10kg</span>}
-                  {s.bags_25kg > 0 && <span className="bg-gray-100 rounded-lg px-2 py-1">{s.bags_25kg}×25kg</span>}
+                <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-3">
+                  {bagSummary(s)}
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
@@ -147,7 +171,7 @@ export default function Sales() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Customer', 'Location', '5kg', '10kg', '25kg', 'Total kg', 'Total', 'Received', 'Status', 'Salesperson', 'Date', ''].map(h => (
+                    {['Customer', 'Flour Type', 'Location', 'Bags', 'Total kg', 'Total', 'Received', 'Status', 'Salesperson', 'Date', ''].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -156,10 +180,13 @@ export default function Sales() {
                   {sales.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50 transition">
                       <td className="px-4 py-3 font-medium text-gray-900">{s.customer_name}</td>
+                      <td className="px-4 py-3">
+                        <span className="bg-green-50 text-green-700 text-xs font-semibold px-2 py-1 rounded-lg">{s.flour_type || '—'}</span>
+                      </td>
                       <td className="px-4 py-3 text-gray-500">{s.location || '—'}</td>
-                      <td className="px-4 py-3 text-gray-700">{s.bags_5kg}</td>
-                      <td className="px-4 py-3 text-gray-700">{s.bags_10kg}</td>
-                      <td className="px-4 py-3 text-gray-700">{s.bags_25kg}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">{bagSummary(s)}</div>
+                      </td>
                       <td className="px-4 py-3 font-medium">{Number(s.total_kg).toLocaleString()} kg</td>
                       <td className="px-4 py-3 font-semibold">{formatRWF(s.total_amount)}</td>
                       <td className="px-4 py-3 text-green-700 font-medium">{formatRWF(s.amount_received)}</td>
@@ -186,6 +213,19 @@ export default function Sales() {
               <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-xl"><X size={20} /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              {/* Flour Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Flour Type</label>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_PRODUCT_TYPES.map(ft => (
+                    <button key={ft} type="button" onClick={() => handleFlourTypeChange(ft)}
+                      className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition ${form.flour_type === ft ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-300 hover:border-green-400'}`}>
+                      {ft}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
@@ -200,31 +240,39 @@ export default function Sales() {
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
               </div>
+
+              {/* Dynamic Bag Sizes */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Bags Sold</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[{ label: '5 kg', key: 'bags_5kg' }, { label: '10 kg', key: 'bags_10kg' }, { label: '25 kg', key: 'bags_25kg' }].map(({ label, key }) => (
-                    <div key={key}>
-                      <label className="block text-xs text-gray-500 mb-1">{label} bags</label>
-                      <input type="number" min="0" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}
-                        placeholder="0"
-                        className="w-full border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-                    </div>
-                  ))}
+                <div className={`grid gap-3 ${bagSizes.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                  {bagSizes.map(sz => {
+                    const key = BAG_KEYS[sz]
+                    return (
+                      <div key={sz}>
+                        <label className="block text-xs text-gray-500 mb-1">{sz} bags</label>
+                        <input type="number" min="0" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}
+                          placeholder="0"
+                          className="w-full border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Price per kg (RWF)</label>
                 <input type="number" step="1" min="0" value={form.price_per_kg} onChange={e => setForm({ ...form, price_per_kg: e.target.value })}
                   required placeholder="e.g. 800"
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
+
               {totalAmount > 0 && (
                 <div className="bg-green-50 rounded-xl px-4 py-3 flex items-center justify-between">
                   <span className="text-sm text-green-700 font-medium">{totalKg} kg → Total</span>
                   <span className="text-lg font-bold text-green-800">{formatRWF(totalAmount)}</span>
                 </div>
               )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
@@ -242,18 +290,21 @@ export default function Sales() {
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Salesperson / Driver</label>
                 <input type="text" value={form.salesperson} onChange={e => setForm({ ...form, salesperson: e.target.value })}
                   placeholder="e.g. Jean Pierre"
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
                 <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2}
                   placeholder="Any additional notes..."
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
               </div>
+
               {error && <p className="text-red-500 text-sm">{error}</p>}
               <button type="submit" disabled={saving}
                 className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3.5 rounded-xl transition disabled:opacity-50 text-base">
