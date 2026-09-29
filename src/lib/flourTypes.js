@@ -7,7 +7,7 @@ export const BAG_SIZES = {
   Magic: ['5kg', '10kg', '25kg'],
   Jabana: ['5kg', '10kg', '25kg'],
   Ordinaire: ['25kg', '50kg'],
-  Bran: ['50kg'],
+  Bran: ['100kg'],
 }
 
 export const BAG_KEYS = {
@@ -15,6 +15,7 @@ export const BAG_KEYS = {
   '10kg': 'bags_10kg',
   '25kg': 'bags_25kg',
   '50kg': 'bags_50kg',
+  '100kg': 'bags_100kg',
 }
 
 export const BAG_WEIGHTS = {
@@ -22,6 +23,7 @@ export const BAG_WEIGHTS = {
   bags_10kg: 10,
   bags_25kg: 25,
   bags_50kg: 50,
+  bags_100kg: 100,
 }
 
 export function getBagSizes(flourType) {
