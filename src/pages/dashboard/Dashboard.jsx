@@ -45,9 +45,7 @@ export default function Dashboard() {
       .filter(d => d.payment_status !== 'paid')
       .reduce((s, d) => s + (parseFloat(d.total_amount) - parseFloat(d.amount_paid)), 0)
 
-    const maizeInStock = (deliveries ?? []).reduce((s, d) => s + parseFloat(d.tonnes), 0) * 1000
-
-    setStats({ flourInStock, todayRevenue, totalRevenue, totalExpenses, unpaidSuppliers, maizeInStock, totalFlourProduced })
+    setStats({ flourInStock, todayRevenue, totalRevenue, totalExpenses, unpaidSuppliers, totalFlourProduced })
     setRecentSales((sales ?? []).slice(0, 5))
     setRecentDeliveries((deliveries ?? []).slice(0, 5))
     setLoading(false)
@@ -75,7 +73,6 @@ export default function Dashboard() {
         <p className="text-gray-500 text-sm mt-1">Here's what's happening at Jabana today.</p>
       </div>
 
-      {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {statCards.map(({ label, value, icon: Icon, color, iconBg }) => (
           <div key={label} className={`rounded-2xl p-4 ${color.split(' ')[0]}`}>
