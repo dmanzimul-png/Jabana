@@ -13,6 +13,7 @@ import Expenses from './pages/expenses/Expenses'
 import Reports from './pages/reports/Reports'
 import Returns from './pages/returns/Returns'
 import SpoiledPackages from './pages/spoiled/SpoiledPackages'
+import Dispatch from './pages/dispatch/Dispatch'
 import Users from './pages/users/Users'
 
 export default function App() {
@@ -37,6 +38,9 @@ export default function App() {
             } />
             <Route path="inventory" element={
               <ProtectedRoute roles={['admin', 'manager']}><Inventory /></ProtectedRoute>
+            } />
+            <Route path="dispatch" element={
+              <ProtectedRoute roles={['admin', 'manager', 'worker']}><Dispatch /></ProtectedRoute>
             } />
             <Route path="returns" element={
               <ProtectedRoute roles={['admin', 'manager', 'worker']}><Returns /></ProtectedRoute>
