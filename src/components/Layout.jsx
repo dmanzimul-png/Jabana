@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, Wheat, Factory, ShoppingCart,
-  Package, Truck, Receipt, Users, BarChart3, LogOut, Menu, X
+  Package, Truck, Receipt, Users, BarChart3, LogOut, Menu, X, RotateCcw, AlertTriangle
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -10,7 +10,9 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'owner', 'manager'] },
   { to: '/maize', label: 'Maize Receiving', icon: Wheat, roles: ['admin', 'manager', 'worker'] },
   { to: '/production', label: 'Production', icon: Factory, roles: ['admin', 'manager', 'worker'] },
-  { to: '/inventory', label: 'Inventory', icon: Package, roles: ['admin', 'manager'] },
+  { to: '/inventory', label: 'Stock', icon: Package, roles: ['admin', 'manager'] },
+  { to: '/returns', label: 'Returns', icon: RotateCcw, roles: ['admin', 'manager', 'worker'] },
+  { to: '/spoiled', label: 'Spoiled Packages', icon: AlertTriangle, roles: ['admin', 'manager', 'worker'] },
   { to: '/sales', label: 'Sales', icon: ShoppingCart, roles: ['admin', 'manager', 'worker'] },
   { to: '/suppliers', label: 'Suppliers', icon: Truck, roles: ['admin', 'manager'] },
   { to: '/expenses', label: 'Expenses', icon: Receipt, roles: ['admin', 'manager'] },

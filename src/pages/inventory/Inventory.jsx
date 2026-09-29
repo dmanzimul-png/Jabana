@@ -2,33 +2,41 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Package } from 'lucide-react'
 
-function formatRWF(amount) {
-  return 'RWF ' + Number(amount).toLocaleString()
-}
-
-export default function Inventory() {
+export default function Stock() {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchInventory() }, [])
+  useEffect(() => { fetchStock() }, [])
 
-  async function fetchInventory() {
+  async function fetchStock() {
     setLoading(true)
-
-    const [{ data: batches }, { data: sales }] = await Promise.all([
-      supabase.from('batches').select('flour_produced_kg'),
+    const [{ data: batches }, { data: sales }, { data: returns_ }, { data: spoiled }] = await Promise.all([
+      supabase.from('batches').select('flour_produced_kg, bags_5kg, bags_10kg, bags_25kg'),
       supabase.from('sales').select('bags_5kg, bags_10kg, bags_25kg, total_kg'),
+      supabase.from('returns').select('bags_5kg, bags_10kg, bags_25kg'),
+      supabase.from('spoiled_packages').select('bags_5kg, bags_10kg, bags_25kg'),
     ])
 
-    const totalProduced = (batches ?? []).reduce((s, b) => s + parseFloat(b.flour_produced_kg), 0)
-    const totalSoldKg = (sales ?? []).reduce((s, sale) => s + parseFloat(sale.total_kg), 0)
-    const flourInStock = totalProduced - totalSoldKg
+    const sum = (arr, key) => (arr ?? []).reduce((s, x) => s + (x[key] ?? 0), 0)
 
-    const bags5Sold = (sales ?? []).reduce((s, sale) => s + sale.bags_5kg, 0)
-    const bags10Sold = (sales ?? []).reduce((s, sale) => s + sale.bags_10kg, 0)
-    const bags25Sold = (sales ?? []).reduce((s, sale) => s + sale.bags_25kg, 0)
+    const produced = { b5: sum(batches, 'bags_5kg'), b10: sum(batches, 'bags_10kg'), b25: sum(batches, 'bags_25kg') }
+    const sold = { b5: sum(sales, 'bags_5kg'), b10: sum(sales, 'bags_10kg'), b25: sum(sales, 'bags_25kg') }
+    const returned = { b5: sum(returns_, 'bags_5kg'), b10: sum(returns_, 'bags_10kg'), b25: sum(returns_, 'bags_25kg') }
+    const spoiledBags = { b5: sum(spoiled, 'bags_5kg'), b10: sum(spoiled, 'bags_10kg'), b25: sum(spoiled, 'bags_25kg') }
 
-    setStats({ totalProduced, totalSoldKg, flourInStock, bags5Sold, bags10Sold, bags25Sold })
+    const remaining = {
+      b5: produced.b5 - sold.b5 + returned.b5 - spoiledBags.b5,
+      b10: produced.b10 - sold.b10 + returned.b10 - spoiledBags.b10,
+      b25: produced.b25 - sold.b25 + returned.b25 - spoiledBags.b25,
+    }
+
+    const totalProducedKg = (batches ?? []).reduce((s, b) => s + parseFloat(b.flour_produced_kg ?? 0), 0)
+    const totalSoldKg = (sales ?? []).reduce((s, x) => s + parseFloat(x.total_kg ?? 0), 0)
+    const totalReturnedKg = returned.b5 * 5 + returned.b10 * 10 + returned.b25 * 25
+    const totalSpoiledKg = spoiledBags.b5 * 5 + spoiledBags.b10 * 10 + spoiledBags.b25 * 25
+    const totalRemainingKg = remaining.b5 * 5 + remaining.b10 * 10 + remaining.b25 * 25
+
+    setStats({ produced, sold, returned, spoiledBags, remaining, totalProducedKg, totalSoldKg, totalReturnedKg, totalSpoiledKg, totalRemainingKg })
     setLoading(false)
   }
 
@@ -38,57 +46,54 @@ export default function Inventory() {
     </div>
   )
 
+  const bagSizes = [
+    { label: '5 kg Bags', produced: stats.produced.b5, sold: stats.sold.b5, returned: stats.returned.b5, spoiled: stats.spoiledBags.b5, remaining: stats.remaining.b5 },
+    { label: '10 kg Bags', produced: stats.produced.b10, sold: stats.sold.b10, returned: stats.returned.b10, spoiled: stats.spoiledBags.b10, remaining: stats.remaining.b10 },
+    { label: '25 kg Bags', produced: stats.produced.b25, sold: stats.sold.b25, returned: stats.returned.b25, spoiled: stats.spoiledBags.b25, remaining: stats.remaining.b25 },
+  ]
+
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-        <p className="text-gray-500 text-sm mt-1">Current flour stock based on production and sales.</p>
+        <h1 className="text-2xl font-bold text-gray-900">Stock</h1>
+        <p className="text-gray-500 text-sm mt-1">Current flour stock by bag size.</p>
       </div>
 
-      {/* Main stock card */}
+      {/* Total stock card */}
       <div className="bg-green-600 rounded-2xl p-6 text-white mb-6">
         <div className="flex items-center gap-3 mb-2">
           <Package size={24} />
-          <p className="font-semibold text-green-100">Flour Currently in Stock</p>
+          <p className="font-semibold text-green-100">Total Flour in Stock</p>
         </div>
-        <p className="text-5xl font-bold mb-1">{stats.flourInStock.toLocaleString()} kg</p>
+        <p className="text-5xl font-bold mb-1">{stats.totalRemainingKg.toLocaleString()} kg</p>
         <p className="text-green-200 text-sm">
-          {stats.totalProduced.toLocaleString()} kg produced — {stats.totalSoldKg.toLocaleString()} kg sold
+          {stats.totalProducedKg.toLocaleString()} kg produced · {stats.totalSoldKg.toLocaleString()} kg sold · {stats.totalReturnedKg.toLocaleString()} kg returned · {stats.totalSpoiledKg.toLocaleString()} kg spoiled
         </p>
       </div>
 
-      {/* Bag breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        {[
-          { label: '5 kg Bags Sold', sold: stats.bags5Sold, kg: 5, color: 'bg-blue-50 text-blue-800', sub: 'text-blue-600' },
-          { label: '10 kg Bags Sold', sold: stats.bags10Sold, kg: 10, color: 'bg-purple-50 text-purple-800', sub: 'text-purple-600' },
-          { label: '25 kg Bags Sold', sold: stats.bags25Sold, kg: 25, color: 'bg-orange-50 text-orange-800', sub: 'text-orange-600' },
-        ].map(b => (
-          <div key={b.label} className={`rounded-2xl p-5 ${b.color.split(' ')[0]}`}>
-            <p className={`text-xs font-medium mb-2 ${b.sub}`}>{b.label}</p>
-            <p className={`text-3xl font-bold ${b.color.split(' ')[1]}`}>{b.sold.toLocaleString()}</p>
-            <p className={`text-xs mt-1 ${b.sub}`}>{(b.sold * b.kg).toLocaleString()} kg total</p>
+      {/* Per bag size breakdown */}
+      <div className="space-y-4">
+        {bagSizes.map(b => (
+          <div key={b.label} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <p className="font-bold text-gray-900">{b.label}</p>
+              <span className="text-lg font-bold text-green-700">{b.remaining} remaining</span>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-gray-100">
+              {[
+                { label: 'Produced', value: b.produced, color: 'text-green-700' },
+                { label: 'Sold', value: b.sold, color: 'text-blue-700' },
+                { label: 'Returned', value: b.returned, color: 'text-yellow-700' },
+                { label: 'Spoiled', value: b.spoiled, color: 'text-red-600' },
+              ].map(s => (
+                <div key={s.label} className="px-5 py-4 text-center">
+                  <p className="text-xs text-gray-400 mb-1">{s.label}</p>
+                  <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
-      </div>
-
-      {/* Summary table */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <p className="font-semibold text-gray-800">Stock Summary</p>
-        </div>
-        <div className="divide-y divide-gray-50">
-          {[
-            { label: 'Total Flour Produced', value: `${stats.totalProduced.toLocaleString()} kg`, color: 'text-green-700' },
-            { label: 'Total Flour Sold', value: `${stats.totalSoldKg.toLocaleString()} kg`, color: 'text-red-600' },
-            { label: 'Flour Remaining in Stock', value: `${stats.flourInStock.toLocaleString()} kg`, color: 'text-gray-900 font-bold' },
-          ].map(row => (
-            <div key={row.label} className="flex items-center justify-between px-6 py-4">
-              <p className="text-sm text-gray-600">{row.label}</p>
-              <p className={`text-sm ${row.color}`}>{row.value}</p>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   )

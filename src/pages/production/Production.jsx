@@ -14,7 +14,8 @@ export default function Production() {
 
   const [form, setForm] = useState({
     delivery_id: '', maize_input_kg: '', flour_produced_kg: '',
-    byproduct_kg: '', other_loss_kg: '', notes: '',
+    byproduct_kg: '', other_loss_kg: '',
+    bags_5kg: '', bags_10kg: '', bags_25kg: '', notes: '',
   })
 
   useEffect(() => { fetchAll() }, [])
@@ -45,11 +46,13 @@ export default function Production() {
       const { error: err } = await supabase.from('batches').insert({
         batch_number: batchNumber, delivery_id: form.delivery_id || null,
         maize_input_kg: parseFloat(form.maize_input_kg), flour_produced_kg: parseFloat(form.flour_produced_kg),
-        byproduct_kg: parseFloat(form.byproduct_kg) || 0, other_loss_kg: parseFloat(form.other_loss_kg) || 0, notes: form.notes,
+        byproduct_kg: parseFloat(form.byproduct_kg) || 0, other_loss_kg: parseFloat(form.other_loss_kg) || 0,
+        bags_5kg: parseInt(form.bags_5kg) || 0, bags_10kg: parseInt(form.bags_10kg) || 0, bags_25kg: parseInt(form.bags_25kg) || 0,
+        notes: form.notes,
       })
       if (err) throw err
       setShowForm(false)
-      setForm({ delivery_id: '', maize_input_kg: '', flour_produced_kg: '', byproduct_kg: '', other_loss_kg: '', notes: '' })
+      setForm({ delivery_id: '', maize_input_kg: '', flour_produced_kg: '', byproduct_kg: '', other_loss_kg: '', bags_5kg: '', bags_10kg: '', bags_25kg: '', notes: '' })
       fetchAll()
     } catch (err) {
       setError(err.message)
@@ -70,7 +73,6 @@ export default function Production() {
   const totalFlour = batches.reduce((s, b) => s + parseFloat(b.flour_produced_kg), 0)
   const totalMaize = batches.reduce((s, b) => s + parseFloat(b.maize_input_kg), 0)
   const avgYield = totalMaize > 0 ? ((totalFlour / totalMaize) * 100).toFixed(1) : 0
-
   const yieldColor = (y) => y >= 65 ? 'bg-green-100 text-green-700' : y >= 55 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
 
   return (
@@ -126,7 +128,7 @@ export default function Production() {
                     <button onClick={() => setDeleteId(b.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="grid grid-cols-3 gap-2 text-center mb-2">
                   <div className="bg-gray-50 rounded-xl p-2">
                     <p className="text-xs text-gray-400">Maize In</p>
                     <p className="font-bold text-gray-800 text-sm">{Number(b.maize_input_kg).toLocaleString()} kg</p>
@@ -140,6 +142,20 @@ export default function Production() {
                     <p className="font-bold text-gray-600 text-sm">{Number(b.byproduct_kg).toLocaleString()} kg</p>
                   </div>
                 </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-green-50 rounded-xl p-2">
+                    <p className="text-xs text-green-600">5kg bags</p>
+                    <p className="font-bold text-green-800 text-sm">{b.bags_5kg ?? 0}</p>
+                  </div>
+                  <div className="bg-green-50 rounded-xl p-2">
+                    <p className="text-xs text-green-600">10kg bags</p>
+                    <p className="font-bold text-green-800 text-sm">{b.bags_10kg ?? 0}</p>
+                  </div>
+                  <div className="bg-green-50 rounded-xl p-2">
+                    <p className="text-xs text-green-600">25kg bags</p>
+                    <p className="font-bold text-green-800 text-sm">{b.bags_25kg ?? 0}</p>
+                  </div>
+                </div>
                 <p className="text-xs text-gray-400 mt-2">{new Date(b.produced_at).toLocaleDateString()}</p>
               </div>
             ))}
@@ -151,7 +167,7 @@ export default function Production() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Batch #', 'Delivery Ref', 'Supplier', 'Maize Input', 'Flour Out', 'By-product', 'Loss', 'Yield', 'Date'].map(h => (
+                    {['Batch #', 'Supplier', 'Maize In', 'Flour Out', 'Yield', '5kg Bags', '10kg Bags', '25kg Bags', 'Date', ''].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -160,15 +176,15 @@ export default function Production() {
                   {batches.map(b => (
                     <tr key={b.id} className="hover:bg-gray-50 transition">
                       <td className="px-4 py-3 font-mono font-semibold text-green-700">{b.batch_number}</td>
-                      <td className="px-4 py-3 font-mono text-gray-500 text-xs">{b.maize_deliveries?.batch_number ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-700">{b.maize_deliveries?.suppliers?.name ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-700">{Number(b.maize_input_kg).toLocaleString()} kg</td>
                       <td className="px-4 py-3 font-semibold text-green-700">{Number(b.flour_produced_kg).toLocaleString()} kg</td>
-                      <td className="px-4 py-3 text-gray-500">{Number(b.byproduct_kg).toLocaleString()} kg</td>
-                      <td className="px-4 py-3 text-gray-500">{Number(b.other_loss_kg).toLocaleString()} kg</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${yieldColor(b.yield_percent)}`}>{b.yield_percent}%</span>
                       </td>
+                      <td className="px-4 py-3 text-gray-700">{b.bags_5kg ?? 0}</td>
+                      <td className="px-4 py-3 text-gray-700">{b.bags_10kg ?? 0}</td>
+                      <td className="px-4 py-3 text-gray-700">{b.bags_25kg ?? 0}</td>
                       <td className="px-4 py-3 text-gray-500">{new Date(b.produced_at).toLocaleDateString()}</td>
                       <td className="px-4 py-3"><button onClick={() => setDeleteId(b.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button></td>
                     </tr>
@@ -198,6 +214,7 @@ export default function Production() {
                   {deliveries.map(d => <option key={d.id} value={d.id}>{d.batch_number} — {d.suppliers?.name} ({d.tonnes}t)</option>)}
                 </select>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: 'Maize Input (kg)', key: 'maize_input_kg', placeholder: 'e.g. 10000', required: true },
@@ -214,12 +231,28 @@ export default function Production() {
                   </div>
                 ))}
               </div>
+
               {yieldPercent && (
                 <div className={`rounded-xl px-4 py-3 flex items-center justify-between ${yieldPercent >= 65 ? 'bg-green-50' : yieldPercent >= 55 ? 'bg-yellow-50' : 'bg-red-50'}`}>
                   <span className="text-sm font-medium text-gray-700">Flour Yield</span>
                   <span className={`text-xl font-bold ${yieldPercent >= 65 ? 'text-green-700' : yieldPercent >= 55 ? 'text-yellow-700' : 'text-red-700'}`}>{yieldPercent}%</span>
                 </div>
               )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Bags Produced</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[{ label: '5 kg', key: 'bags_5kg' }, { label: '10 kg', key: 'bags_10kg' }, { label: '25 kg', key: 'bags_25kg' }].map(({ label, key }) => (
+                    <div key={key}>
+                      <label className="block text-xs text-gray-500 mb-1">{label} bags</label>
+                      <input type="number" min="0" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}
+                        placeholder="0"
+                        className="w-full border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
                 <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2}
