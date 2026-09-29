@@ -82,10 +82,10 @@ export default function Stock() {
       </div>
 
       {/* Flour type selector */}
-      <div className="flex gap-2 flex-wrap mb-6">
+      <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-hide">
         {FLOUR_TYPES.map(type => (
           <button key={type} onClick={() => setSelectedType(type)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition border-2 ${selectedType === type ? 'border-green-600 bg-green-600 text-white' : 'border-gray-200 text-gray-600 hover:border-green-300'}`}>
+            className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition border-2 ${selectedType === type ? 'border-green-600 bg-green-600 text-white' : 'border-gray-200 text-gray-600 hover:border-green-300'}`}>
             {type}
           </button>
         ))}

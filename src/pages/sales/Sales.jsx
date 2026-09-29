@@ -216,10 +216,10 @@ export default function Sales() {
               {/* Flour Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Flour Type</label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                   {ALL_PRODUCT_TYPES.map(ft => (
                     <button key={ft} type="button" onClick={() => handleFlourTypeChange(ft)}
-                      className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition ${form.flour_type === ft ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-300 hover:border-green-400'}`}>
+                      className={`shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium border transition ${form.flour_type === ft ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-300 hover:border-green-400'}`}>
                       {ft}
                     </button>
                   ))}
