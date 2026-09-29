@@ -21,6 +21,7 @@ export default function MaizeReceiving() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [deleteId, setDeleteId] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
 
   const [form, setForm] = useState({
     supplier_id: '', new_supplier: '', tonnes: '', price_per_tonne: '',
@@ -76,7 +77,9 @@ export default function MaizeReceiving() {
   }
 
   async function handleDelete() {
-    await supabase.from('maize_deliveries').delete().eq('id', deleteId)
+    setDeleteError('')
+    const { error: err } = await supabase.from('maize_deliveries').delete().eq('id', deleteId)
+    if (err) { setDeleteError(err.message); return }
     setDeleteId(null)
     fetchAll()
   }
@@ -200,9 +203,10 @@ export default function MaizeReceiving() {
               <Trash2 size={22} className="text-red-600" />
             </div>
             <h3 className="font-bold text-gray-900 mb-2">Delete Delivery?</h3>
-            <p className="text-sm text-gray-500 mb-6">This action cannot be undone.</p>
+            <p className="text-sm text-gray-500 mb-2">This action cannot be undone.</p>
+            {deleteError && <p className="text-red-500 text-xs mb-3">{deleteError}</p>}
             <div className="flex gap-3">
-              <button onClick={() => setDeleteId(null)} className="flex-1 border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition">Cancel</button>
+              <button onClick={() => { setDeleteId(null); setDeleteError('') }} className="flex-1 border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition">Cancel</button>
               <button onClick={handleDelete} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition">Delete</button>
             </div>
           </div>
