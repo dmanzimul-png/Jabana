@@ -105,6 +105,9 @@ export default function Dispatch() {
       const { error: iErr } = await supabase.from('dispatch_items').insert(itemRows)
       if (iErr) throw iErr
 
+      // update total_kg after items are inserted
+      await supabase.from('dispatches').update({ total_kg: totalKg }).eq('id', disp.id)
+
       setShowForm(false)
       setForm({ car_plate: '', driver_name: '', notes: '', items: [emptyItem()] })
       fetchDispatches()
