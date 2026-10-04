@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, Wheat, Factory, ShoppingCart,
-  Package, Truck, Receipt, Users, BarChart3, LogOut, Menu, X, RotateCcw, AlertTriangle, Send
+  Package, Truck, Receipt, Users, BarChart3, LogOut, Menu, X, RotateCcw, AlertTriangle, Send, HardHat
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -17,6 +17,7 @@ const navItems = [
   { to: '/sales', label: 'Sales', icon: ShoppingCart, roles: ['admin', 'manager', 'worker'] },
   { to: '/suppliers', label: 'Suppliers', icon: Truck, roles: ['admin', 'manager'] },
   { to: '/expenses', label: 'Expenses', icon: Receipt, roles: ['admin', 'manager'] },
+  { to: '/workers', label: 'Workers & Pay', icon: HardHat, roles: ['admin', 'manager'] },
   { to: '/reports', label: 'Reports', icon: BarChart3, roles: ['admin', 'owner'] },
   { to: '/users', label: 'Users', icon: Users, roles: ['admin'] },
 ]

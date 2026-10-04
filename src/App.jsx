@@ -15,6 +15,7 @@ import Returns from './pages/returns/Returns'
 import SpoiledPackages from './pages/spoiled/SpoiledPackages'
 import Dispatch from './pages/dispatch/Dispatch'
 import Users from './pages/users/Users'
+import Workers from './pages/workers/Workers'
 
 export default function App() {
   return (
@@ -56,6 +57,9 @@ export default function App() {
             } />
             <Route path="reports" element={
               <ProtectedRoute roles={['admin', 'owner']}><Reports /></ProtectedRoute>
+            } />
+            <Route path="workers" element={
+              <ProtectedRoute roles={['admin', 'manager']}><Workers /></ProtectedRoute>
             } />
             <Route path="users" element={
               <ProtectedRoute roles={['admin']}><Users /></ProtectedRoute>

@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import DeleteConfirm from '../../components/DeleteConfirm'
-import { FLOUR_TYPES, getBagSizes, BAG_KEYS } from '../../lib/flourTypes'
-import { Plus, X, Truck, Trash2, RotateCcw, CheckCircle } from 'lucide-react'
+import { ALL_PRODUCT_TYPES, getBagSizes, BAG_KEYS, BAG_WEIGHTS } from '../../lib/flourTypes'
+import { Plus, X, Truck, Trash2, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
+
+const statusColors = {
+  out: 'bg-blue-100 text-blue-700',
+  returned: 'bg-green-100 text-green-700',
+  partial: 'bg-yellow-100 text-yellow-700',
+}
+const statusLabels = { out: 'Out', returned: 'Returned', partial: 'Partial Return' }
 
 const flourColors = {
   'Shenge': 'bg-yellow-100 text-yellow-700',
@@ -10,15 +17,19 @@ const flourColors = {
   'Magic': 'bg-blue-100 text-blue-700',
   'Jabana': 'bg-green-100 text-green-700',
   'Ordinaire': 'bg-gray-100 text-gray-700',
+  'Bran': 'bg-amber-100 text-amber-700',
 }
 
-const statusColors = {
-  out: 'bg-blue-100 text-blue-700',
-  returned: 'bg-green-100 text-green-700',
-  partial: 'bg-yellow-100 text-yellow-700',
+function emptyItem() {
+  return { flour_type: 'Shenge', bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', bags_100kg: '' }
 }
 
-const statusLabels = { out: 'Out', returned: 'Returned', partial: 'Partial Return' }
+function itemKg(item) {
+  return getBagSizes(item.flour_type).reduce((s, sz) => {
+    const key = BAG_KEYS[sz]
+    return s + (parseInt(item[key]) || 0) * BAG_WEIGHTS[key]
+  }, 0)
+}
 
 export default function Dispatch() {
   const [dispatches, setDispatches] = useState([])
@@ -28,23 +39,44 @@ export default function Dispatch() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [deleteId, setDeleteId] = useState(null)
+  const [expanded, setExpanded] = useState({})
 
-  const [form, setForm] = useState({
-    car_plate: '', driver_name: '', flour_type: 'Shenge',
-    bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: '',
-  })
-
-  const [returnForm, setReturnForm] = useState({
-    returned_5kg: '', returned_10kg: '', returned_25kg: '', returned_50kg: '', status: 'returned',
-  })
+  const [form, setForm] = useState({ car_plate: '', driver_name: '', notes: '', items: [emptyItem()] })
+  const [returnItems, setReturnItems] = useState([])
+  const [returnStatus, setReturnStatus] = useState('returned')
 
   useEffect(() => { fetchDispatches() }, [])
 
   async function fetchDispatches() {
     setLoading(true)
-    const { data } = await supabase.from('dispatches').select('*').order('dispatched_at', { ascending: false })
-    setDispatches(data ?? [])
+    const { data: disps } = await supabase.from('dispatches').select('*').order('dispatched_at', { ascending: false })
+    const { data: items } = await supabase.from('dispatch_items').select('*')
+    const list = (disps ?? []).map(d => ({
+      ...d,
+      items: (items ?? []).filter(i => i.dispatch_id === d.id),
+    }))
+    setDispatches(list)
     setLoading(false)
+  }
+
+  function updateItem(idx, field, value) {
+    setForm(f => {
+      const items = [...f.items]
+      if (field === 'flour_type') {
+        items[idx] = { ...emptyItem(), flour_type: value }
+      } else {
+        items[idx] = { ...items[idx], [field]: value }
+      }
+      return { ...f, items }
+    })
+  }
+
+  function addItem() {
+    setForm(f => ({ ...f, items: [...f.items, emptyItem()] }))
+  }
+
+  function removeItem(idx) {
+    setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))
   }
 
   async function handleSubmit(e) {
@@ -52,15 +84,30 @@ export default function Dispatch() {
     setError('')
     setSaving(true)
     try {
-      const { error: err } = await supabase.from('dispatches').insert({
-        car_plate: form.car_plate, driver_name: form.driver_name, flour_type: form.flour_type,
-        bags_5kg: parseInt(form.bags_5kg) || 0, bags_10kg: parseInt(form.bags_10kg) || 0,
-        bags_25kg: parseInt(form.bags_25kg) || 0, bags_50kg: parseInt(form.bags_50kg) || 0,
-        notes: form.notes, status: 'out',
-      })
+      const totalKg = form.items.reduce((s, item) => s + itemKg(item), 0)
+      const { data: disp, error: err } = await supabase.from('dispatches').insert({
+        car_plate: form.car_plate, driver_name: form.driver_name,
+        notes: form.notes, status: 'out', total_kg: totalKg,
+        // keep legacy columns blank for compatibility
+        flour_type: form.items[0]?.flour_type ?? '',
+        bags_5kg: 0, bags_10kg: 0, bags_25kg: 0, bags_50kg: 0,
+      }).select().single()
       if (err) throw err
+
+      const itemRows = form.items.map(item => ({
+        dispatch_id: disp.id,
+        flour_type: item.flour_type,
+        bags_5kg: parseInt(item.bags_5kg) || 0,
+        bags_10kg: parseInt(item.bags_10kg) || 0,
+        bags_25kg: parseInt(item.bags_25kg) || 0,
+        bags_50kg: parseInt(item.bags_50kg) || 0,
+        bags_100kg: parseInt(item.bags_100kg) || 0,
+      }))
+      const { error: iErr } = await supabase.from('dispatch_items').insert(itemRows)
+      if (iErr) throw iErr
+
       setShowForm(false)
-      setForm({ car_plate: '', driver_name: '', flour_type: 'Shenge', bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: '' })
+      setForm({ car_plate: '', driver_name: '', notes: '', items: [emptyItem()] })
       fetchDispatches()
     } catch (err) {
       setError(err.message)
@@ -69,21 +116,37 @@ export default function Dispatch() {
     }
   }
 
+  function openReturnForm(d) {
+    setShowReturnForm(d)
+    setReturnStatus('returned')
+    setReturnItems(d.items.map(item => ({
+      id: item.id,
+      flour_type: item.flour_type,
+      returned_5kg: '', returned_10kg: '', returned_25kg: '', returned_50kg: '', returned_100kg: '',
+    })))
+  }
+
+  function updateReturn(idx, field, value) {
+    setReturnItems(r => r.map((item, i) => i === idx ? { ...item, [field]: value } : item))
+  }
+
   async function handleReturn(e) {
     e.preventDefault()
     setSaving(true)
     try {
-      const { error: err } = await supabase.from('dispatches').update({
-        returned_5kg: parseInt(returnForm.returned_5kg) || 0,
-        returned_10kg: parseInt(returnForm.returned_10kg) || 0,
-        returned_25kg: parseInt(returnForm.returned_25kg) || 0,
-        returned_50kg: parseInt(returnForm.returned_50kg) || 0,
-        status: returnForm.status,
-        returned_at: new Date().toISOString(),
+      for (const ri of returnItems) {
+        await supabase.from('dispatch_items').update({
+          returned_5kg: parseInt(ri.returned_5kg) || 0,
+          returned_10kg: parseInt(ri.returned_10kg) || 0,
+          returned_25kg: parseInt(ri.returned_25kg) || 0,
+          returned_50kg: parseInt(ri.returned_50kg) || 0,
+          returned_100kg: parseInt(ri.returned_100kg) || 0,
+        }).eq('id', ri.id)
+      }
+      await supabase.from('dispatches').update({
+        status: returnStatus, returned_at: new Date().toISOString(),
       }).eq('id', showReturnForm.id)
-      if (err) throw err
       setShowReturnForm(null)
-      setReturnForm({ returned_5kg: '', returned_10kg: '', returned_25kg: '', returned_50kg: '', status: 'returned' })
       fetchDispatches()
     } catch (err) {
       setError(err.message)
@@ -99,8 +162,16 @@ export default function Dispatch() {
   }
 
   const outCount = dispatches.filter(d => d.status === 'out').length
-  const totalKgOut = dispatches.reduce((s, d) => s + parseFloat(d.total_kg ?? 0), 0)
-  const bagSizes = getBagSizes(form.flour_type)
+
+  function bagChips(item, prefix = '', colorClass = 'bg-gray-100 text-gray-700') {
+    return getBagSizes(item.flour_type).map(sz => {
+      const key = prefix ? `${prefix}_${sz.replace('kg', 'kg')}` : BAG_KEYS[sz]
+      const val = parseInt(item[key]) || 0
+      return val > 0 ? (
+        <span key={sz} className={`rounded-lg px-2 py-0.5 text-xs font-medium ${colorClass}`}>{val}×{sz}</span>
+      ) : null
+    })
+  }
 
   return (
     <div>
@@ -109,7 +180,7 @@ export default function Dispatch() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dispatch</h1>
-          <p className="text-gray-500 text-sm mt-1">Track cars going out to sell and returning with stock.</p>
+          <p className="text-gray-500 text-sm mt-1">Track cars going out with multiple flour types.</p>
         </div>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition">
           <Plus size={18} /> Dispatch Car
@@ -127,7 +198,7 @@ export default function Dispatch() {
         </div>
         <div className="bg-purple-50 rounded-2xl p-4 col-span-2 lg:col-span-1">
           <p className="text-xs font-medium text-purple-700 mb-1">Total kg Dispatched</p>
-          <p className="text-2xl font-bold text-purple-800">{totalKgOut.toLocaleString()} kg</p>
+          <p className="text-2xl font-bold text-purple-800">{dispatches.reduce((s, d) => s + parseFloat(d.total_kg ?? 0), 0).toLocaleString()} kg</p>
         </div>
       </div>
 
@@ -144,54 +215,49 @@ export default function Dispatch() {
         <div className="space-y-3">
           {dispatches.map(d => (
             <div key={d.id} className="bg-white rounded-2xl border border-gray-100 p-4">
-              <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start justify-between mb-2">
                 <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-bold text-gray-900">{d.driver_name}</p>
-                    <span className="text-xs text-gray-400">🚗 {d.car_plate}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${flourColors[d.flour_type]}`}>{d.flour_type}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusColors[d.status]}`}>{statusLabels[d.status]}</span>
-                  </div>
+                  <p className="font-bold text-gray-900">{d.driver_name}</p>
+                  <p className="text-xs text-gray-400">🚗 {d.car_plate} · {new Date(d.dispatched_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColors[d.status]}`}>{statusLabels[d.status]}</span>
                   {d.status === 'out' && (
-                    <button onClick={() => { setShowReturnForm(d); setReturnForm({ returned_5kg: '', returned_10kg: '', returned_25kg: '', returned_50kg: '', status: 'returned' }) }}
-                      className="p-1.5 hover:bg-yellow-50 rounded-lg text-yellow-500 hover:text-yellow-700 transition" title="Record Return">
-                      <RotateCcw size={15} />
-                    </button>
+                    <button onClick={() => openReturnForm(d)} className="p-1.5 hover:bg-yellow-50 rounded-lg text-yellow-500 hover:text-yellow-700 transition"><RotateCcw size={15} /></button>
                   )}
                   <button onClick={() => setDeleteId(d.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button>
                 </div>
               </div>
 
-              {/* Dispatched bags */}
-              <div className="mb-2">
-                <p className="text-xs text-gray-400 mb-1">Dispatched</p>
-                <div className="flex gap-2 flex-wrap">
-                  {d.bags_5kg > 0 && <span className="bg-gray-100 rounded-lg px-2 py-1 text-xs font-medium">{d.bags_5kg}×5kg</span>}
-                  {d.bags_10kg > 0 && <span className="bg-gray-100 rounded-lg px-2 py-1 text-xs font-medium">{d.bags_10kg}×10kg</span>}
-                  {d.bags_25kg > 0 && <span className="bg-gray-100 rounded-lg px-2 py-1 text-xs font-medium">{d.bags_25kg}×25kg</span>}
-                  {d.bags_50kg > 0 && <span className="bg-gray-100 rounded-lg px-2 py-1 text-xs font-medium">{d.bags_50kg}×50kg</span>}
-                  <span className="bg-purple-100 text-purple-700 rounded-lg px-2 py-1 text-xs font-medium">{d.total_kg} kg total</span>
-                </div>
-              </div>
-
-              {/* Returned bags */}
-              {d.status !== 'out' && (
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Returned</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {d.returned_5kg > 0 && <span className="bg-green-100 text-green-700 rounded-lg px-2 py-1 text-xs font-medium">{d.returned_5kg}×5kg</span>}
-                    {d.returned_10kg > 0 && <span className="bg-green-100 text-green-700 rounded-lg px-2 py-1 text-xs font-medium">{d.returned_10kg}×10kg</span>}
-                    {d.returned_25kg > 0 && <span className="bg-green-100 text-green-700 rounded-lg px-2 py-1 text-xs font-medium">{d.returned_25kg}×25kg</span>}
-                    {d.returned_50kg > 0 && <span className="bg-green-100 text-green-700 rounded-lg px-2 py-1 text-xs font-medium">{d.returned_50kg}×50kg</span>}
+              {/* Items summary */}
+              <div className="space-y-2">
+                {(d.items ?? []).map((item, i) => (
+                  <div key={i} className="bg-gray-50 rounded-xl px-3 py-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${flourColors[item.flour_type] ?? 'bg-gray-100 text-gray-700'}`}>{item.flour_type}</span>
+                      <button onClick={() => setExpanded(ex => ({ ...ex, [`${d.id}-${i}`]: !ex[`${d.id}-${i}`] }))} className="text-gray-400">
+                        {expanded[`${d.id}-${i}`] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {bagChips(item, '', 'bg-white text-gray-700 border border-gray-200')}
+                    </div>
+                    {expanded[`${d.id}-${i}`] && d.status !== 'out' && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <p className="text-xs text-gray-400 mb-1">Returned:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {getBagSizes(item.flour_type).map(sz => {
+                            const key = `returned_${sz}`
+                            const val = parseInt(item[key]) || 0
+                            return val > 0 ? <span key={sz} className="bg-green-100 text-green-700 rounded-lg px-2 py-0.5 text-xs font-medium">{val}×{sz}</span> : null
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
-
-              <p className="text-xs text-gray-400 mt-2">{new Date(d.dispatched_at).toLocaleDateString()}</p>
+                ))}
+              </div>
+              <p className="text-xs text-purple-600 font-medium mt-2">{parseFloat(d.total_kg ?? 0).toLocaleString()} kg total</p>
             </div>
           ))}
         </div>
@@ -220,27 +286,61 @@ export default function Dispatch() {
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
               </div>
+
+              {/* Flour items list */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Flour Type</label>
-                <select value={form.flour_type} onChange={e => setForm({ ...form, flour_type: e.target.value, bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '' })}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
-                  {FLOUR_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Bags Dispatched</label>
-                <div className={`grid gap-3 grid-cols-${bagSizes.length}`}>
-                  {bagSizes.map(size => (
-                    <div key={size}>
-                      <label className="block text-xs text-gray-500 mb-1">{size} bags</label>
-                      <input type="number" min="0" value={form[BAG_KEYS[size]]}
-                        onChange={e => setForm({ ...form, [BAG_KEYS[size]]: e.target.value })}
-                        placeholder="0"
-                        className="w-full border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">Flour Types & Bags</label>
+                  <button type="button" onClick={addItem} className="text-xs text-green-600 font-semibold flex items-center gap-1 hover:text-green-700">
+                    <Plus size={13} /> Add Type
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {form.items.map((item, idx) => {
+                    const sizes = getBagSizes(item.flour_type)
+                    return (
+                      <div key={idx} className="border border-gray-200 rounded-xl p-3 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <select value={item.flour_type} onChange={e => updateItem(idx, 'flour_type', e.target.value)}
+                            className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                            {ALL_PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                          {form.items.length > 1 && (
+                            <button type="button" onClick={() => removeItem(idx)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+                              <X size={15} />
+                            </button>
+                          )}
+                        </div>
+                        <div className={`grid gap-2 grid-cols-${sizes.length}`}>
+                          {sizes.map(sz => {
+                            const key = BAG_KEYS[sz]
+                            return (
+                              <div key={sz}>
+                                <label className="block text-xs text-gray-500 mb-1">{sz}</label>
+                                <input type="number" min="0" value={item[key] ?? ''}
+                                  onChange={e => updateItem(idx, key, e.target.value)}
+                                  placeholder="0"
+                                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {itemKg(item) > 0 && (
+                          <p className="text-xs text-green-600 font-medium">{itemKg(item)} kg</p>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
+
+              {form.items.reduce((s, item) => s + itemKg(item), 0) > 0 && (
+                <div className="bg-green-50 rounded-xl px-4 py-3 flex justify-between">
+                  <span className="text-sm text-green-700 font-medium">Total</span>
+                  <span className="text-sm font-bold text-green-800">{form.items.reduce((s, item) => s + itemKg(item), 0)} kg</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
                 <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2}
@@ -268,44 +368,40 @@ export default function Dispatch() {
               <button onClick={() => setShowReturnForm(null)} className="p-2 hover:bg-gray-100 rounded-xl"><X size={20} /></button>
             </div>
             <form onSubmit={handleReturn} className="p-5 space-y-4">
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-xs text-gray-500 mb-2">Originally dispatched:</p>
-                <div className="flex gap-2 flex-wrap">
-                  {showReturnForm.bags_5kg > 0 && <span className="bg-white border rounded-lg px-2 py-1 text-xs">{showReturnForm.bags_5kg}×5kg</span>}
-                  {showReturnForm.bags_10kg > 0 && <span className="bg-white border rounded-lg px-2 py-1 text-xs">{showReturnForm.bags_10kg}×10kg</span>}
-                  {showReturnForm.bags_25kg > 0 && <span className="bg-white border rounded-lg px-2 py-1 text-xs">{showReturnForm.bags_25kg}×25kg</span>}
-                  {showReturnForm.bags_50kg > 0 && <span className="bg-white border rounded-lg px-2 py-1 text-xs">{showReturnForm.bags_50kg}×50kg</span>}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Bags Returned</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {getBagSizes(showReturnForm.flour_type).map(size => {
-                    const retKey = `returned_${size.replace('kg', 'kg')}`
-                    const retKeyFixed = `returned_${size === '5kg' ? '5kg' : size === '10kg' ? '10kg' : size === '25kg' ? '25kg' : '50kg'}`
-                    return (
-                      <div key={size}>
-                        <label className="block text-xs text-gray-500 mb-1">{size} bags returned</label>
-                        <input type="number" min="0" value={returnForm[retKeyFixed]}
-                          onChange={e => setReturnForm({ ...returnForm, [retKeyFixed]: e.target.value })}
-                          placeholder="0"
-                          className="w-full border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Return Status</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[{ value: 'returned', label: '✅ Full Return' }, { value: 'partial', label: '⚠️ Partial Return' }].map(opt => (
-                    <button key={opt.value} type="button"
-                      onClick={() => setReturnForm({ ...returnForm, status: opt.value })}
-                      className={`py-3 rounded-xl text-sm font-semibold border-2 transition ${returnForm.status === opt.value ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600'}`}>
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+              {returnItems.map((ri, idx) => {
+                const sizes = getBagSizes(ri.flour_type)
+                const orig = showReturnForm.items[idx]
+                return (
+                  <div key={idx} className="border border-gray-200 rounded-xl p-3 space-y-2">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${flourColors[ri.flour_type] ?? 'bg-gray-100 text-gray-700'}`}>{ri.flour_type}</span>
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {orig && bagChips(orig, '', 'bg-gray-100 text-gray-600')}
+                    </div>
+                    <p className="text-xs text-gray-500">Bags returned:</p>
+                    <div className={`grid gap-2 grid-cols-${sizes.length}`}>
+                      {sizes.map(sz => {
+                        const key = `returned_${sz}`
+                        return (
+                          <div key={sz}>
+                            <label className="block text-xs text-gray-500 mb-1">{sz}</label>
+                            <input type="number" min="0" value={ri[key] ?? ''}
+                              onChange={e => updateReturn(idx, key, e.target.value)}
+                              placeholder="0"
+                              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+              <div className="grid grid-cols-2 gap-3">
+                {[{ value: 'returned', label: '✅ Full Return' }, { value: 'partial', label: '⚠️ Partial Return' }].map(opt => (
+                  <button key={opt.value} type="button" onClick={() => setReturnStatus(opt.value)}
+                    className={`py-3 rounded-xl text-sm font-semibold border-2 transition ${returnStatus === opt.value ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600'}`}>
+                    {opt.label}
+                  </button>
+                ))}
               </div>
               {error && <p className="text-red-500 text-sm">{error}</p>}
               <button type="submit" disabled={saving}
