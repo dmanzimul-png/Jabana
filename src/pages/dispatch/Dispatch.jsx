@@ -87,8 +87,7 @@ export default function Dispatch() {
       const totalKg = form.items.reduce((s, item) => s + itemKg(item), 0)
       const { data: disp, error: err } = await supabase.from('dispatches').insert({
         car_plate: form.car_plate, driver_name: form.driver_name,
-        notes: form.notes, status: 'out', total_kg: totalKg,
-        // keep legacy columns blank for compatibility
+        notes: form.notes, status: 'out',
         flour_type: form.items[0]?.flour_type ?? '',
         bags_5kg: 0, bags_10kg: 0, bags_25kg: 0, bags_50kg: 0,
       }).select().single()
