@@ -44,7 +44,7 @@ export default function Sales() {
 
   function handleFlourTypeChange(ft) {
     const sizes = getBagSizes(ft)
-    setForm(f => ({ ...f, flour_type: ft, bagLines: [{ size: sizes[0], qty: '' }] }))
+    setForm(f => ({ ...f, flour_type: ft, price_per_kg: '', bagLines: [{ size: sizes[0], qty: '' }] }))
   }
 
   function updateBagLine(idx, field, value) {
