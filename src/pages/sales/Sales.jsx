@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import DeleteConfirm from '../../components/DeleteConfirm'
-import { ALL_PRODUCT_TYPES, getBagSizes, BAG_KEYS, BAG_WEIGHTS, calcTotalKg } from '../../lib/flourTypes'
+import { ALL_PRODUCT_TYPES, getBagSizes, BAG_KEYS, BAG_WEIGHTS } from '../../lib/flourTypes'
 import { Plus, X, ShoppingCart, Trash2 } from 'lucide-react'
 
 const statusColors = {
@@ -11,14 +11,17 @@ const statusColors = {
 }
 const statusLabels = { paid: 'Paid', partially_paid: 'Partially Paid', unpaid: 'Unpaid' }
 
-function formatRWF(amount) {
-  return 'RWF ' + Number(amount).toLocaleString()
+function formatRWF(amount) { return 'RWF ' + Number(amount).toLocaleString() }
+
+function emptyBagLine(flourType) {
+  const sizes = getBagSizes(flourType)
+  return { size: sizes[0], qty: '' }
 }
 
 const emptyForm = {
   flour_type: 'Shenge', customer_name: '', location: '',
-  bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '',
   price_per_kg: '', amount_received: '', payment_status: 'paid', salesperson: '', notes: '',
+  bagLines: [{ size: '25kg', qty: '' }],
 }
 
 export default function Sales() {
@@ -40,7 +43,33 @@ export default function Sales() {
   }
 
   function handleFlourTypeChange(ft) {
-    setForm(f => ({ ...f, flour_type: ft, bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '' }))
+    const sizes = getBagSizes(ft)
+    setForm(f => ({ ...f, flour_type: ft, bagLines: [{ size: sizes[0], qty: '' }] }))
+  }
+
+  function updateBagLine(idx, field, value) {
+    setForm(f => {
+      const bagLines = [...f.bagLines]
+      bagLines[idx] = { ...bagLines[idx], [field]: value }
+      return { ...f, bagLines }
+    })
+  }
+
+  function addBagLine() {
+    const sizes = getBagSizes(form.flour_type)
+    setForm(f => ({ ...f, bagLines: [...f.bagLines, { size: sizes[0], qty: '' }] }))
+  }
+
+  function removeBagLine(idx) {
+    setForm(f => ({ ...f, bagLines: f.bagLines.filter((_, i) => i !== idx) }))
+  }
+
+  function calcTotals() {
+    const totalKg = form.bagLines.reduce((s, line) => {
+      return s + (parseInt(line.qty) || 0) * (BAG_WEIGHTS[BAG_KEYS[line.size]] || 0)
+    }, 0)
+    const totalAmount = totalKg * (parseFloat(form.price_per_kg) || 0)
+    return { totalKg, totalAmount }
   }
 
   async function handleSubmit(e) {
@@ -48,17 +77,18 @@ export default function Sales() {
     setError('')
     setSaving(true)
     try {
-      const totalKg = calcTotalKg(form, form.flour_type)
-      const totalAmount = totalKg * (parseFloat(form.price_per_kg) || 0)
+      const { totalKg, totalAmount } = calcTotals()
+      // build bag columns from bagLines
+      const bags = { bags_5kg: 0, bags_10kg: 0, bags_25kg: 0, bags_50kg: 0, bags_100kg: 0 }
+      form.bagLines.forEach(line => {
+        const key = BAG_KEYS[line.size]
+        if (key) bags[key] = (bags[key] || 0) + (parseInt(line.qty) || 0)
+      })
       const { error: err } = await supabase.from('sales').insert({
         flour_type: form.flour_type,
         customer_name: form.customer_name, location: form.location,
-        bags_5kg: parseInt(form.bags_5kg) || 0,
-        bags_10kg: parseInt(form.bags_10kg) || 0,
-        bags_25kg: parseInt(form.bags_25kg) || 0,
-        bags_50kg: parseInt(form.bags_50kg) || 0,
-        total_kg: totalKg,
-        total_amount: totalAmount,
+        ...bags,
+        total_kg: totalKg, total_amount: totalAmount,
         price_per_kg: parseFloat(form.price_per_kg),
         amount_received: parseFloat(form.amount_received) || 0,
         payment_status: form.payment_status, salesperson: form.salesperson, notes: form.notes,
@@ -80,9 +110,8 @@ export default function Sales() {
     fetchSales()
   }
 
-  const bagSizes = getBagSizes(form.flour_type)
-  const totalKg = calcTotalKg(form, form.flour_type)
-  const totalAmount = totalKg * (parseFloat(form.price_per_kg) || 0)
+  const { totalKg, totalAmount } = calcTotals()
+  const availableSizes = getBagSizes(form.flour_type)
   const todayRevenue = sales.filter(s => new Date(s.sold_at).toDateString() === new Date().toDateString()).reduce((s, x) => s + parseFloat(x.amount_received), 0)
   const totalRevenue = sales.reduce((s, x) => s + parseFloat(x.amount_received), 0)
   const totalKgSold = sales.reduce((s, x) => s + parseFloat(x.total_kg || 0), 0)
@@ -148,9 +177,7 @@ export default function Sales() {
                     <button onClick={() => setDeleteId(s.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-3">
-                  {bagSummary(s)}
-                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-3">{bagSummary(s)}</div>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-gray-400">{Number(s.total_kg).toLocaleString()} kg total</p>
@@ -180,19 +207,13 @@ export default function Sales() {
                   {sales.map(s => (
                     <tr key={s.id} className="hover:bg-gray-50 transition">
                       <td className="px-4 py-3 font-medium text-gray-900">{s.customer_name}</td>
-                      <td className="px-4 py-3">
-                        <span className="bg-green-50 text-green-700 text-xs font-semibold px-2 py-1 rounded-lg">{s.flour_type || '—'}</span>
-                      </td>
+                      <td className="px-4 py-3"><span className="bg-green-50 text-green-700 text-xs font-semibold px-2 py-1 rounded-lg">{s.flour_type || '—'}</span></td>
                       <td className="px-4 py-3 text-gray-500">{s.location || '—'}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">{bagSummary(s)}</div>
-                      </td>
+                      <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{bagSummary(s)}</div></td>
                       <td className="px-4 py-3 font-medium">{Number(s.total_kg).toLocaleString()} kg</td>
                       <td className="px-4 py-3 font-semibold">{formatRWF(s.total_amount)}</td>
                       <td className="px-4 py-3 text-green-700 font-medium">{formatRWF(s.amount_received)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColors[s.payment_status]}`}>{statusLabels[s.payment_status]}</span>
-                      </td>
+                      <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColors[s.payment_status]}`}>{statusLabels[s.payment_status]}</span></td>
                       <td className="px-4 py-3 text-gray-500">{s.salesperson || '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{new Date(s.sold_at).toLocaleDateString()}</td>
                       <td className="px-4 py-3"><button onClick={() => setDeleteId(s.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button></td>
@@ -213,10 +234,11 @@ export default function Sales() {
               <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-xl"><X size={20} /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
+
               {/* Flour Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Flour Type</label>
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <div className="flex gap-2 overflow-x-auto pb-1">
                   {ALL_PRODUCT_TYPES.map(ft => (
                     <button key={ft} type="button" onClick={() => handleFlourTypeChange(ft)}
                       className={`shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium border transition ${form.flour_type === ft ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-300 hover:border-green-400'}`}>
@@ -241,21 +263,33 @@ export default function Sales() {
                 </div>
               </div>
 
-              {/* Dynamic Bag Sizes */}
+              {/* Bag Lines */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Bags Sold</label>
-                <div className={`grid gap-3 ${bagSizes.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                  {bagSizes.map(sz => {
-                    const key = BAG_KEYS[sz]
-                    return (
-                      <div key={sz}>
-                        <label className="block text-xs text-gray-500 mb-1">{sz} bags</label>
-                        <input type="number" min="0" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })}
-                          placeholder="0"
-                          className="w-full border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-                      </div>
-                    )
-                  })}
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">Bags Sold</label>
+                  <button type="button" onClick={addBagLine}
+                    className="text-xs text-green-600 font-semibold flex items-center gap-1 hover:text-green-700">
+                    <Plus size={13} /> Add Size
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {form.bagLines.map((line, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <select value={line.size} onChange={e => updateBagLine(idx, 'size', e.target.value)}
+                        className="border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                        {availableSizes.map(sz => <option key={sz} value={sz}>{sz} bags</option>)}
+                      </select>
+                      <input type="number" min="0" value={line.qty} onChange={e => updateBagLine(idx, 'qty', e.target.value)}
+                        placeholder="Qty" required
+                        className="flex-1 border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                      {form.bagLines.length > 1 && (
+                        <button type="button" onClick={() => removeBagLine(idx)}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+                          <X size={15} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
