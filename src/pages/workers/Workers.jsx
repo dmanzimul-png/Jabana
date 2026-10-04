@@ -101,6 +101,13 @@ export default function Workers() {
         notes: payForm.notes,
       })
       if (err) throw err
+      // auto-log to expenses so it shows in Reports
+      await supabase.from('expenses').insert({
+        category: 'wages',
+        amount: net,
+        description: `Wages — ${w.full_name} (${days} days)`,
+        expense_date: new Date().toISOString().split('T')[0],
+      })
       setShowPayForm(null)
       setPayForm({ days_worked: '', notes: '' })
       fetchAll()
