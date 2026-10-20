@@ -16,7 +16,7 @@ export default function Stock() {
   const [allStats, setAllStats] = useState({})
   const [loading, setLoading] = useState(true)
   const [showAdj, setShowAdj] = useState(false)
-  const [adjForm, setAdjForm] = useState({ flour_type: 'Shenge', bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: '' })
+  const [adjForm, setAdjForm] = useState({ flour_type: 'Shenge', bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: '', date: new Date().toISOString().split('T')[0] })
   const [adjSaving, setAdjSaving] = useState(false)
   const [adjError, setAdjError] = useState('')
 
@@ -46,10 +46,11 @@ export default function Stock() {
         bran_bags_100kg: 0,
         is_opening_stock: true,
         notes: adjForm.notes || 'Manual stock adjustment',
+        produced_at: adjForm.date,
       })
       if (err) throw err
       setShowAdj(false)
-      setAdjForm({ flour_type: 'Shenge', bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: '' })
+      setAdjForm({ flour_type: 'Shenge', bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: '', date: new Date().toISOString().split('T')[0] })
       fetchStock()
     } catch (err) {
       setAdjError(err.message)
@@ -203,6 +204,13 @@ export default function Stock() {
                       className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                   </div>
                 ))}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input type="date" value={adjForm.date}
+                  onChange={e => setAdjForm({ ...adjForm, date: e.target.value })}
+                  required
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
