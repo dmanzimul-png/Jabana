@@ -1,4 +1,4 @@
-export const FLOUR_TYPES = ['Shenge', 'Magic Pate Jaune', 'Magic', 'Jabana', 'Ordinaire']
+export const FLOUR_TYPES = ['Shenge', 'Magic Pate Jaune', 'Magic', 'Jabana', 'Ordinaire Shenge', 'Ordinaire Jabana']
 export const ALL_PRODUCT_TYPES = [...FLOUR_TYPES, 'Bran']
 
 export const BAG_SIZES = {
@@ -6,7 +6,8 @@ export const BAG_SIZES = {
   'Magic Pate Jaune': ['5kg', '10kg', '25kg'],
   Magic: ['5kg', '10kg', '25kg'],
   Jabana: ['5kg', '10kg', '25kg'],
-  Ordinaire: ['25kg', '50kg'],
+  'Ordinaire Shenge': ['25kg', '50kg'],
+  'Ordinaire Jabana': ['25kg', '50kg'],
   Bran: ['100kg'],
 }
 

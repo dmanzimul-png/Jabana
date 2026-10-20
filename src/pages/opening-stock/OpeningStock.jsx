@@ -8,7 +8,8 @@ const flourColors = {
   'Magic Pate Jaune': 'border-orange-400 bg-orange-50',
   'Magic': 'border-blue-400 bg-blue-50',
   'Jabana': 'border-green-400 bg-green-50',
-  'Ordinaire': 'border-gray-400 bg-gray-50',
+  'Ordinaire Shenge': 'border-gray-400 bg-gray-50',
+  'Ordinaire Jabana': 'border-stone-400 bg-stone-50',
 }
 
 const emptyBags = () => ({ bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '' })

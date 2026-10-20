@@ -9,7 +9,8 @@ const flourColors = {
   'Magic Pate Jaune': 'bg-orange-100 text-orange-700',
   'Magic': 'bg-blue-100 text-blue-700',
   'Jabana': 'bg-green-100 text-green-700',
-  'Ordinaire': 'bg-gray-100 text-gray-700',
+  'Ordinaire Shenge': 'bg-gray-100 text-gray-700',
+  'Ordinaire Jabana': 'bg-stone-100 text-stone-700',
 }
 
 export default function Production() {
@@ -81,8 +82,9 @@ export default function Production() {
 
   const yieldPercent = form.maize_input_kg && form.flour_produced_kg
     ? ((parseFloat(form.flour_produced_kg) / parseFloat(form.maize_input_kg)) * 100).toFixed(1) : null
-  const totalFlour = batches.reduce((s, b) => s + parseFloat(b.flour_produced_kg), 0)
-  const totalMaize = batches.reduce((s, b) => s + parseFloat(b.maize_input_kg), 0)
+  const realBatches = batches.filter(b => !b.is_opening_stock)
+  const totalFlour = realBatches.reduce((s, b) => s + parseFloat(b.flour_produced_kg), 0)
+  const totalMaize = realBatches.reduce((s, b) => s + parseFloat(b.maize_input_kg), 0)
   const avgYield = totalMaize > 0 ? ((totalFlour / totalMaize) * 100).toFixed(1) : 0
   const yieldColor = (y) => y >= 65 ? 'bg-green-100 text-green-700' : y >= 55 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
   const bagSizes = getBagSizes(form.flour_type)

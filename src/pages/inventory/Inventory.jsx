@@ -8,7 +8,8 @@ const flourColors = {
   'Magic Pate Jaune': 'bg-orange-500',
   'Magic': 'bg-blue-500',
   'Jabana': 'bg-green-500',
-  'Ordinaire': 'bg-gray-500',
+  'Ordinaire Shenge': 'bg-gray-500',
+  'Ordinaire Jabana': 'bg-stone-500',
 }
 
 export default function Stock() {
@@ -106,7 +107,7 @@ export default function Stock() {
   }
 
   const s = allStats[selectedType]
-  const isOrdinaire = selectedType === 'Ordinaire'
+  const isOrdinaire = selectedType === 'Ordinaire Shenge' || selectedType === 'Ordinaire Jabana'
   const bagRows = isOrdinaire
     ? [{ label: '25 kg Bags', pk: 'b25' }, { label: '50 kg Bags', pk: 'b50' }]
     : [{ label: '5 kg Bags', pk: 'b5' }, { label: '10 kg Bags', pk: 'b10' }, { label: '25 kg Bags', pk: 'b25' }]

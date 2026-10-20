@@ -47,8 +47,9 @@ export default function Reports() {
     const totalCost = totalExpenses + maizeCost
     const netProfit = totalRevenue - totalCost
 
-    const totalFlour = (batches ?? []).reduce((s, x) => s + parseFloat(x.flour_produced_kg), 0)
-    const totalMaize = (batches ?? []).reduce((s, x) => s + parseFloat(x.maize_input_kg), 0)
+    const realBatches = (batches ?? []).filter(x => !x.is_opening_stock)
+    const totalFlour = realBatches.reduce((s, x) => s + parseFloat(x.flour_produced_kg), 0)
+    const totalMaize = realBatches.reduce((s, x) => s + parseFloat(x.maize_input_kg), 0)
     const avgYield = totalMaize > 0 ? ((totalFlour / totalMaize) * 100).toFixed(1) : 0
 
     const totalKgSold = (sales ?? []).reduce((s, x) => s + parseFloat(x.total_kg), 0)
