@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { FLOUR_TYPES } from '../../lib/flourTypes'
-import { Package } from 'lucide-react'
+import { FLOUR_TYPES, getBagSizes, BAG_KEYS, BAG_WEIGHTS } from '../../lib/flourTypes'
+import { Package, Plus, X } from 'lucide-react'
 
 const flourColors = {
   'Shenge': 'bg-yellow-500',
@@ -15,6 +15,48 @@ export default function Stock() {
   const [selectedType, setSelectedType] = useState('Shenge')
   const [allStats, setAllStats] = useState({})
   const [loading, setLoading] = useState(true)
+  const [showAdj, setShowAdj] = useState(false)
+  const [adjForm, setAdjForm] = useState({ flour_type: 'Shenge', bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: '' })
+  const [adjSaving, setAdjSaving] = useState(false)
+  const [adjError, setAdjError] = useState('')
+
+  async function handleAdjSubmit(e) {
+    e.preventDefault()
+    setAdjError('')
+    setAdjSaving(true)
+    try {
+      const type = adjForm.flour_type
+      const totalKg = getBagSizes(type).reduce((sum, size) => {
+        const key = BAG_KEYS[size]
+        return sum + (parseInt(adjForm[key]) || 0) * BAG_WEIGHTS[key]
+      }, 0)
+      const { count } = await supabase.from('batches').select('*', { count: 'exact', head: true })
+      const batchNumber = `ADJ-${new Date().getFullYear()}-${String((count ?? 0) + 1).padStart(3, '0')}`
+      const { error: err } = await supabase.from('batches').insert({
+        batch_number: batchNumber,
+        flour_type: type,
+        maize_input_kg: 0,
+        flour_produced_kg: totalKg,
+        byproduct_kg: 0,
+        other_loss_kg: 0,
+        bags_5kg: parseInt(adjForm.bags_5kg) || 0,
+        bags_10kg: parseInt(adjForm.bags_10kg) || 0,
+        bags_25kg: parseInt(adjForm.bags_25kg) || 0,
+        bags_50kg: parseInt(adjForm.bags_50kg) || 0,
+        bran_bags_100kg: 0,
+        is_opening_stock: true,
+        notes: adjForm.notes || 'Manual stock adjustment',
+      })
+      if (err) throw err
+      setShowAdj(false)
+      setAdjForm({ flour_type: 'Shenge', bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: '' })
+      fetchStock()
+    } catch (err) {
+      setAdjError(err.message)
+    } finally {
+      setAdjSaving(false)
+    }
+  }
 
   useEffect(() => { fetchStock() }, [])
 
@@ -74,11 +116,19 @@ export default function Stock() {
     </div>
   )
 
+  const adjBagSizes = getBagSizes(adjForm.flour_type)
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Stock</h1>
-        <p className="text-gray-500 text-sm mt-1">Current flour stock by type and bag size.</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Stock</h1>
+          <p className="text-gray-500 text-sm mt-1">Current flour stock by type and bag size.</p>
+        </div>
+        <button onClick={() => setShowAdj(true)}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition">
+          <Plus size={18} /> Add Stock
+        </button>
       </div>
 
       {/* Flour type selector */}
@@ -126,6 +176,50 @@ export default function Stock() {
           </div>
         ))}
       </div>
+      {showAdj && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end lg:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+              <h2 className="text-lg font-bold text-gray-900">Add Stock Manually</h2>
+              <button onClick={() => setShowAdj(false)} className="p-2 hover:bg-gray-100 rounded-xl"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleAdjSubmit} className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Flour Type</label>
+                <select value={adjForm.flour_type}
+                  onChange={e => setAdjForm({ flour_type: e.target.value, bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: adjForm.notes })}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                  {FLOUR_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className={`grid gap-3 grid-cols-${adjBagSizes.length}`}>
+                {adjBagSizes.map(size => (
+                  <div key={size}>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">{size} bags</label>
+                    <input type="number" min="0"
+                      value={adjForm[BAG_KEYS[size]]}
+                      onChange={e => setAdjForm({ ...adjForm, [BAG_KEYS[size]]: e.target.value })}
+                      placeholder="0"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
+                <input type="text" value={adjForm.notes}
+                  onChange={e => setAdjForm({ ...adjForm, notes: e.target.value })}
+                  placeholder="e.g. Remaining stock before takeover"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+              {adjError && <p className="text-red-500 text-sm">{adjError}</p>}
+              <button type="submit" disabled={adjSaving}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3.5 rounded-xl transition disabled:opacity-50">
+                {adjSaving ? 'Saving...' : 'Add to Stock'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

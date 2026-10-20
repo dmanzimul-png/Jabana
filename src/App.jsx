@@ -16,6 +16,7 @@ import SpoiledPackages from './pages/spoiled/SpoiledPackages'
 import Dispatch from './pages/dispatch/Dispatch'
 import Users from './pages/users/Users'
 import Workers from './pages/workers/Workers'
+import OpeningStock from './pages/opening-stock/OpeningStock'
 
 export default function App() {
   return (
@@ -63,6 +64,9 @@ export default function App() {
             } />
             <Route path="users" element={
               <ProtectedRoute roles={['admin']}><Users /></ProtectedRoute>
+            } />
+            <Route path="opening-stock" element={
+              <ProtectedRoute roles={['admin', 'manager']}><OpeningStock /></ProtectedRoute>
             } />
 
           </Route>
