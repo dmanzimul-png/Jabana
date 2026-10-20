@@ -41,7 +41,7 @@ export default function OpeningStock() {
       const rows = FLOUR_TYPES.map(type => ({
         batch_number: `OPENING-${type.replace(/\s+/g, '-').toUpperCase()}`,
         flour_type: type,
-        maize_input_kg: 0,
+        maize_input_kg: 0.001,
         flour_produced_kg: calcKg(type),
         byproduct_kg: 0,
         other_loss_kg: 0,

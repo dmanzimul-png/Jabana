@@ -137,7 +137,7 @@ export default function Production() {
                     {b.flour_type && <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${flourColors[b.flour_type]}`}>{b.flour_type}</span>}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${yieldColor(b.yield_percent)}`}>{b.yield_percent}%</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${yieldColor(b.yield_percent)}`}>{b.is_opening_stock ? '—' : `${b.yield_percent}%`}</span>
                     <button onClick={() => setDeleteId(b.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-400 hover:text-red-600 transition"><Trash2 size={15} /></button>
                   </div>
                 </div>
@@ -188,7 +188,7 @@ export default function Production() {
                       <td className="px-4 py-3 text-gray-700">{b.maize_deliveries?.suppliers?.name ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-700">{Number(b.maize_input_kg).toLocaleString()} kg</td>
                       <td className="px-4 py-3 font-semibold text-green-700">{Number(b.flour_produced_kg).toLocaleString()} kg</td>
-                      <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${yieldColor(b.yield_percent)}`}>{b.yield_percent}%</span></td>
+                      <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${yieldColor(b.yield_percent)}`}>{b.is_opening_stock ? '—' : `${b.yield_percent}%`}</span></td>
                       <td className="px-4 py-3 text-gray-700">{b.bags_5kg ?? 0}</td>
                       <td className="px-4 py-3 text-gray-700">{b.bags_10kg ?? 0}</td>
                       <td className="px-4 py-3 text-gray-700">{b.bags_25kg ?? 0}</td>

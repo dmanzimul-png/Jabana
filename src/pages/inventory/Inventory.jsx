@@ -32,12 +32,11 @@ export default function Stock() {
         return sum + (parseInt(adjForm[key]) || 0) * BAG_WEIGHTS[key]
       }, 0)
       const { count } = await supabase.from('batches').select('*', { count: 'exact', head: true })
-      const batchNumber = `ADJ-${new Date().getFullYear()}-${String((count ?? 0) + 1).padStart(3, '0')}`
+      const batchNumber = `ADJ-${new Date().getFullYear()}-${String(((count ?? 0) + 1)).padStart(3, '0')}`
       const { error: err } = await supabase.from('batches').insert({
         batch_number: batchNumber,
         flour_type: type,
-        maize_input_kg: 0,
-        flour_produced_kg: totalKg,
+        maize_input_kg: 0.001,
         byproduct_kg: 0,
         other_loss_kg: 0,
         bags_5kg: parseInt(adjForm.bags_5kg) || 0,
