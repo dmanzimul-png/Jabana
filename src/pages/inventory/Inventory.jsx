@@ -189,7 +189,7 @@ export default function Stock() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Flour Type</label>
                 <select value={adjForm.flour_type}
-                  onChange={e => setAdjForm({ flour_type: e.target.value, bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: adjForm.notes })}
+                  onChange={e => setAdjForm({ flour_type: e.target.value, bags_5kg: '', bags_10kg: '', bags_25kg: '', bags_50kg: '', notes: adjForm.notes, date: adjForm.date })}
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
                   {FLOUR_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
