@@ -37,6 +37,7 @@ export default function Stock() {
         batch_number: batchNumber,
         flour_type: type,
         maize_input_kg: 0.001,
+        flour_produced_kg: totalKg || 0,
         byproduct_kg: 0,
         other_loss_kg: 0,
         bags_5kg: parseInt(adjForm.bags_5kg) || 0,
